@@ -1,7 +1,7 @@
 /*	Author: 
  *  Partner(s) Name: 
  *	Lab Section: 22
- *	Assignment: Lab #9  Exercise #2
+ *	Assignment: Lab #9  Exercise #1
  *	Exercise Description: [optional - include for your own benefit]
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
@@ -55,48 +55,56 @@ void PWM_off(){
 	TCCR3B = 0x00;
 }
 
-unsigned char counter = 0;
-double notes[8] = { 261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25};
 
-unsigned char on = 0;
-enum States{start, onOff, pressed} state;
+enum States{start, off, b1, b2, b3} state;
 void Tick(){
-	unsigned char temp_A = ~PINA;
+	unsigned char tempA = ~PINA;
+	//state transistions
 	switch(state){
 		case start:
-			state = onOff;
+			state = off;
 			break;
-		case onOff:
-			if((temp_A & 0x01) == 0x01 && !on){
-				on = 1;
-				state = pressed;
+
+		case off:
+			if((tempA & 0x07) == 0x01){
+				state = b1;
 			}
-			else if((temp_A & 0x01) == 0x01 && on){
-				on = 0;
-				state = pressed;
+			else if((tempA & 0x07) == 0x02){
+				state = b2;
 			}
-			else if((temp_A & 0x02) == 0x02){
-				if(counter != 0){
-					counter--;
-				}
-				state = pressed;
-			}
-			else if((temp_A & 0x04) == 0x04){
-				if(counter != 7){
-					counter++;
-				}
-				state = pressed;
+			else if((tempA & 0x07) == 0x04){
+				state = b3;
 			}
 			else{
-				state = onOff;
+				state = off;
 			}
+
 			break;
-		case pressed:
-			if((temp_A & 0x01) == 0x01 || (temp_A & 0x02) == 0x02 || (temp_A & 0x04) == 0x04){
-				state = pressed;
+
+		case b1:
+			if((tempA & 0x07) == 0x01){
+				state = b1;
 			}
 			else{
-				state = onOff;
+				state = off;
+			}
+			break;
+
+		case b2:
+			if((tempA & 0x07) == 0x02){
+				state = b2;
+			}
+			else{
+				state = off;
+			}
+			break;
+
+		case b3:
+			if((tempA & 0x07) == 0x04){
+				state = b3;
+			}
+			else{
+				state = off;
 			}
 			break;
 
@@ -108,21 +116,23 @@ void Tick(){
 	switch(state){
 		case start:
 			break;
-		case onOff:
-			if(on){
-				set_PWM(notes[counter]);
-			}
-			else{
-				set_PWM(0);
-			}
+		case off:
+			set_PWM(0);
 			break;
-
-		case pressed:
+		case b1:
+			set_PWM(261.63);
 			break;
-
+		case b2:
+			set_PWM(293.61);
+			break;
+		case b3:
+			set_PWM(329.63);
+			break;
+			
 		default:
 			break;
 	}
+
 }
 
 void TimerOn(){
