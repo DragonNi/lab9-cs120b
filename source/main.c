@@ -1,7 +1,7 @@
 /*	Author: 
  *  Partner(s) Name: 
  *	Lab Section: 22
- *	Assignment: Lab #9  Exercise #2
+ *	Assignment: Lab #9  Exercise #3
  *	Exercise Description: [optional - include for your own benefit]
  *	I acknowledge all content contained herein, excluding template or example
  *	code, is my own original work.
@@ -55,76 +55,90 @@ void PWM_off(){
 	TCCR3B = 0x00;
 }
 
-unsigned char counter = 0;
-double notes[8] = { 261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25};
 
+unsigned char counter = 0;
+unsigned char waitCounter = 1;
+double notes[21] = {329.62, 329.63, 329.63, 329.63, 293.66,329.63, 440.00, 329.66, 293.66, 293.66, 293.66, 293.66, 293.66, 293.66, 261.63, 293.66, 392.00, 293.66, 261.63, 246.94, 261.63};
+unsigned char noteLength[21] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,5};
+unsigned char waitTimes[21] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 unsigned char on = 0;
-enum States{start, onOff, pressed} state;
+enum States{Start, off, play, wait, hold} state;
 void Tick(){
 	unsigned char temp_A = ~PINA;
 	switch(state){
-		case start:
-			state = onOff;
+		case Start:
+			PWM_on();
+			state = off;
 			break;
-		case onOff:
-			if((temp_A & 0x01) == 0x01 && !on){
-				on = 1;
-				state = pressed;
-			}
-			else if((temp_A & 0x01) == 0x01 && on){
-				on = 0;
-				state = pressed;
-			}
-			else if((temp_A & 0x02) == 0x02){
-				if(counter != 0){
-					counter--;
-				}
-				state = pressed;
-			}
-			else if((temp_A & 0x04) == 0x04){
-				if(counter != 7){
-					counter++;
-				}
-				state = pressed;
+		case off:
+			if((temp_A & 0x01) == 0x01){
+				state = play;
 			}
 			else{
-				state = onOff;
+				state = off;
 			}
 			break;
-		case pressed:
-			if((temp_A & 0x01) == 0x01 || (temp_A & 0x02) == 0x02 || (temp_A & 0x04) == 0x04){
-				state = pressed;
+		case play:
+			if(waitCounter < noteLength[counter]){
+				state = play;
 			}
 			else{
-				state = onOff;
+				waitCounter = 1;
+				state = wait;
+			}
+			break;
+		case wait:
+			if(waitCounter < noteLength[counter]){
+				state = wait;
+			}
+			else if(counter !=20){
+				waitCounter= 1;
+				counter++;
+				state = play;
+			}
+			else if((temp_A & 0x01) == 0x01 && counter == 20){
+				counter = 0;
+				state = hold;
+			}
+			else{
+				counter = 0;
+				state = off;
+			}
+			 
+			break;
+		case hold:
+			if((temp_A & 0x01) == 0x01){
+				state = hold;
+			}
+			else{
+				state = off;
 			}
 			break;
 
 		default:
-			state = start;
+			state = Start;
 			break;
 	}
-
 	switch(state){
-		case start:
+		case Start:
 			break;
-		case onOff:
-			if(on){
-				set_PWM(notes[counter]);
-			}
-			else{
-				set_PWM(0);
-			}
+		case off:
 			break;
-
-		case pressed:
+		case play:
+			set_PWM(notes[counter]);
+			waitCounter++;
 			break;
-
+		case wait:
+			set_PWM(0);
+			waitCounter++;
+			break;
+		case hold:
+			break;
 		default:
 			break;
 	}
-}
 
+}
 void TimerOn(){
 	TCCR1B = 0x0B;
 	OCR1A = 125;
@@ -163,12 +177,16 @@ int main(void) {
     /* Insert your solution below */
 	DDRA = 0x00;	PORTA = 0xFF;
 	DDRB = 0xFF;	PORTB = 0x00;
-	
-	TimerSet(300);
+
+	TimerSet(200);
 	TimerOn();	
 	PWM_on();
     while (1) {
+
 	Tick();
+	while(!TimerFlag);
+
+	TimerFlag = 0;
     }
     return 1;
 }
